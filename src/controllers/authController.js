@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js";
 
 // SIGNUP
 export const signup = async (req, res) => {
@@ -67,8 +68,10 @@ export const login = async (req, res) => {
 };
 
 // FORGOT PASSWORD
+
 export const forgotPassword = async (req, res) => {
   try {
+
     const { email } = req.body;
 
     const user = await User.findOne({ email });
@@ -80,27 +83,24 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(20).toString("hex");
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Hash token before saving to DB
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000; // 1 hour
+    user.otp = otp;
+    user.otpExpire = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    // For testing (later send via email)
-    const resetUrl = `http://localhost:8000/reset-password/${resetToken}`;
+    await sendEmail(
+      user.email,
+      "Password Reset OTP",
+      `Your OTP is ${otp}. It expires in 10 minutes`
+    );
 
     res.status(200).json({
       success: true,
-      message: "Reset link generated",
-      resetUrl,
+      message: "OTP sent to your email",
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -109,30 +109,27 @@ export const forgotPassword = async (req, res) => {
 // RESET PASSWORD
 export const resetPassword = async (req, res) => {
   try {
-    // Hash token from params
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(req.params.token)
-      .digest("hex");
+
+    const { email, otp, password } = req.body;
 
     const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
+      email,
+      otp,
+      otpExpire: { $gt: Date.now() },
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired token",
+        message: "Invalid or expired OTP",
       });
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     user.password = hashedPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.otp = undefined;
+    user.otpExpire = undefined;
 
     await user.save();
 
@@ -140,10 +137,12 @@ export const resetPassword = async (req, res) => {
       success: true,
       message: "Password reset successful",
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // LOGOUT
 export const logout = async (req, res) => {
