@@ -6,6 +6,8 @@ import wishlistRoutes from "./src/routes/wishlistRoutes.js";
 import cartRoutes from     "./src/routes/cartRoutes.js";
 import contactRoutes from "./src/routes/contactRoutes.js";
 import profileRoutes from "./src/routes/profileRoutes.js";
+import addressRoutes from "./src/routes/addressRoutes.js";
+
 
 
 const app = express();
@@ -21,10 +23,12 @@ app.use("/api/v1/product", productRoutes);
 app.use("/api/v1/wishlist", wishlistRoutes);
 //Cart
 app.use("/api/v1/cart", cartRoutes);
-//COntact
+//Contact
 app.use("/api/v1/contact", contactRoutes); 
 //Profile
 app.use("/api/v1/profile", profileRoutes);
+//Address
+app.use("/api/v1/address", addressRoutes);
 
 
 export default app;
